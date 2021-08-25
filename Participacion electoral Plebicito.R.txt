@@ -1,0 +1,103 @@
+
+library(patchwork)
+library(rJava)
+library(pdftools)
+library(tabulizer)
+library(tm)
+library(readxl)
+library(tidyverse)
+
+setwd("C:/Users/Rodrigo Aros/Desktop/pruebas_r")
+pdf<- extract_tables("partipacion_por_region.pdf", output = "data.frame")
+
+a<-pdf[[1]]
+b<-pdf[[2]]
+c<-pdf[[3]]
+d<-pdf[[4]]
+resultados<- rbind(a,b,c,d)
+
+# Participación -----------------------------------------------------------
+
+pdf1<- extract_tables("biobio.pdf", method = "lattice")
+pdf2<- extract_tables("region_losrios.pdf", method = "decide")
+
+
+
+a<-data.frame(pdf1[[1]])
+colnames(a)<- c("Comuna","Total Mesas","Total Electores","Votantes Sábado",
+                "Participación Sábado (%)","Total Sab-Dom","Participación(%)")
+
+b<-data.frame(pdf1[[2]])
+colnames(b)<- c("Comuna","Total Mesas","Total Electores","Votantes Sábado",
+                "Participación Sábado (%)","Total Sab-Dom","Participación(%)")
+
+c<-data.frame(pdf3[[3]])
+colnames(c)<- c("Comuna","Total Mesas","Total Electores","Votantes Sábado",
+                "Participación Sábado (%)","Total Sab-Dom","Participación(%)")
+
+a<-a[-1,]
+b<-b[c(-1,-9,-10),]
+c<-c[c(-1,-3,-4),]
+
+
+total<-rbind(a,b)     
+rownames(total)<-c(1:51)
+colnames(total)<- c("Comuna","Total Mesas","Total Electores","Votantes Sábado",
+                    "Participación Sábado (%)","Total Sab-Dom","Participación(%)")
+write.csv2(total, file="biobio.csv")
+library(dplyr)
+{
+# preparacion grafico participacion-----------------------------------------------------------------
+participacion<-read.csv2("biobio.csv", sep=";")
+participacion<- participacion[,c(2:8)]
+participacion<- participacion[1:4,]
+colnames(participacion)<- c("Comuna","Total Mesas","Total Electores","Votantes Sábado",
+                   "Participación Sábado (%)","Votantes_sab_dom","Participación(%)")
+
+# coercion y sacar puntos -------------------------------------------------
+
+participacion$`Total Electores`<-gsub('\\.', '',participacion$`Total Electores`)%>% as.numeric()
+participacion$`Votantes Sábado`<-gsub('\\.', '',participacion$`Votantes Sábado`)%>% as.numeric()
+participacion$Votantes_sab_dom<-gsub('\\.', '',participacion$Votantes_sab_dom)%>% as.numeric()
+
+participacion$Comuna<- str_replace_all(participacion$Comuna, "[\r\n]" , " ")
+}
+# gráficos ----------------------------------------------------------------
+g5<-ggplot(participacion,
+       aes(x= reorder(`Comuna`, +`Participación(%)`),
+           y= `Participación(%)`))+ 
+  geom_bar(stat = "identity", color="white", fill="slategrey") +
+  theme(axis.text=element_text(size = 1,
+                               color = "darkgrey")) +
+  theme_classic() +
+  labs(title = "Porcentaje de Participación Región Del BIO BIO Elecciones 2021", subtitle = "Región Del BIO BIO",
+       caption = "Datos Servel - por @kualote", x = "Comunas") +
+  coord_flip()
+g5
+# gráficos ----------------------------------------------------------------
+colors()
+
+ggplot(participacion,
+           aes(x= reorder(`Comuna`, +`Participación(%)`),
+               y= `Participación(%)`)) +
+  geom_col(stat = "identity", color="white", fill="lightskyblue3") +
+  labs(title = "Porcentaje de Participación por Comuna Elecciones 2021 Chile", subtitle = "Región Metropolitana",
+       caption = "Datos Servel", x = "Comunas RM") +
+  theme_classic()+
+  coord_flip()+
+    theme(axis.text.y = element_text(size = 6,      
+                                     color="black"))
+
+
+ggplot(data = participacion) + 
+  geom_point(mapping = 
+               aes(x = participacion$`Total Electores`/1000,
+                   y = participacion$Votantes_sab_dom, 
+                   color=participacion$`Participación(%)`)) +
+  facet_wrap(~ participacion$`Participación(%)`, nrow = 3)
+
+participacion$`Participación(%)`<-cut(participacion$`Participación(%)`, breaks=c(1,45,50,70),
+    labels= c ("baja", "media","alta"))
+
+library(patchwork)
+g1
